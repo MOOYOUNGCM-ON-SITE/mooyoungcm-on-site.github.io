@@ -42,6 +42,10 @@
   body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(--font-ui); overflow: hidden; -webkit-tap-highlight-color: transparent; }
   button, input, textarea, select { font: inherit; color: inherit; }
   button { cursor: pointer; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+  /* 앱처럼: 길게 누르거나 끌 때 글자 선택(아이폰 파란 손잡이)·복사 메뉴가 뜨지 않게. 입력 칸과 읽는 글은 선택 가능 */
+  body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea, select, [contenteditable], .selectable, .ask-thread, .ntb { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+  .cad-stage, .doc-stage, canvas, svg, img { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   button:disabled { cursor: default; opacity: .45; }
   :focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
   h1, h2, h3 { text-wrap: balance; }
@@ -1312,7 +1316,7 @@
 <div class="drop" id="drop" hidden>놓으면 자료함에 추가합니다</div>
 <button class="rec-pill" id="rec-pill" type="button" hidden><i class="dot" aria-hidden="true"></i>녹음 중 <span id="rec-pill-t" class="num">0:00</span><span class="go">회의록 보기</span></button>
 
-<script>window.MYCM_TARGET = 'pwa'; window.MYCM_VERSION = '2.7.1';</script>
+<script>window.MYCM_TARGET = 'pwa'; window.MYCM_VERSION = '2.7.2';</script>
 <script src="vendor/earcut.min.js"></script>
 <script src="vendor/pdf.min.js"></script>
 <script>
@@ -4090,6 +4094,20 @@ window.MYCM_TERMS = "# MYCM-ON 기본 건설 용어집\n# 한 줄에 하나. 띄
     const o = e.target.closest('[data-open]'); if (o) { openFile(o.dataset.open); return; }
     const m = e.target.closest('[data-menu]'); if (m) fileMenu(m.dataset.menu);
   });
+
+  // 아이폰: 도면·문서를 누르고 있으면 글자 선택이 시작돼 파란 손잡이가 생긴다 → 입력 칸·읽는 글 밖에서는 막는다
+  const SELECTABLE = 'input, textarea, select, [contenteditable], .selectable, .ask-thread, .ntb';
+  document.addEventListener('selectstart', (e) => {
+    const el = e.target && (e.target.nodeType === 1 ? e.target : e.target.parentElement);
+    if (!el || !el.closest(SELECTABLE)) e.preventDefault();
+  });
+  document.addEventListener('contextmenu', (e) => { if (e.target.closest && e.target.closest('.cad-stage, .doc-stage')) e.preventDefault(); });
+  document.addEventListener('touchend', () => {
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    const n = sel.anchorNode, el = n && (n.nodeType === 1 ? n : n.parentElement);
+    if (el && !el.closest(SELECTABLE)) sel.removeAllRanges();
+  }, { passive: true });
 
   // ---------------- 화면 전환 ----------------
   function go(view, opts) {
