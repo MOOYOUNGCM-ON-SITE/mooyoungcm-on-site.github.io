@@ -1346,7 +1346,7 @@
 <div class="drop" id="drop" hidden>놓으면 자료함에 추가합니다</div>
 <button class="rec-pill" id="rec-pill" type="button" hidden><i class="dot" aria-hidden="true"></i>녹음 중 <span id="rec-pill-t" class="num">0:00</span><span class="go">회의록 보기</span></button>
 
-<script>window.MYCM_TARGET = 'pwa'; window.MYCM_VERSION = '2.7.4';</script>
+<script>window.MYCM_TARGET = 'pwa'; window.MYCM_VERSION = '2.7.5';</script>
 <script src="vendor/earcut.min.js"></script>
 <script src="vendor/pdf.min.js"></script>
 <script>
@@ -9183,10 +9183,12 @@ ${lines}`;
     const b = boardFor(sid);
     const pc = (b && b.info) || {};
     const mine = App.store.get('siteinfo.' + (sid || 'none'), {});
-    const i = Object.assign({ cmOrg: '무영씨엠건축사사무소', staff: App.userName || '' }, strip({ name: pc.name, contractor: pc.contractor, client: pc.client, start: pc.start, end: pc.end, progress: pc.progress, plan: pc.plan, addr: pc.addr, chief: pc.chief, agent: pc.agent }), strip(mine));
+    // 현장 PC에 적힌 값이 우선 (PC에서 고치면 모든 기기·휴대폰에 그대로), PC에 없는 칸만 이 기기 값
+    const i = Object.assign({ cmOrg: '무영씨엠건축사사무소', staff: App.userName || '' }, strip(mine), strip(pcFields(pc)));
     if (!i.name) i.name = site ? site.name : '';
     return i;
   }
+  const pcFields = (pc) => ({ name: pc.name, contractor: pc.contractor, client: pc.client, start: pc.start, end: pc.end, progress: pc.progress, plan: pc.plan, addr: pc.addr, chief: pc.chief, agent: pc.agent });
   // 현장 PC가 보내 준 홈 화면 정보 (현장마다 기기에 보관)
   function boardFor(sid) {
     sid = sid === undefined ? App.siteId() : sid;
@@ -9198,11 +9200,15 @@ ${lines}`;
   async function editSiteInfo() {
     if (!App.site) { App.toast('먼저 현장을 정해 주세요.', true); return false; }
     const i = siteInfo();
-    const F = (k, l, ph, type) => `<label class="lbl">${l}<input class="field" data-si="${k}" type="${type || 'text'}" value="${esc(i[k] || '')}" placeholder="${esc(ph || '')}" autocomplete="off"></label>`;
+    const b0 = boardFor();
+    const fromPC = strip(pcFields((b0 && b0.info) || {}));
+    const F = (k, l, ph, type) => fromPC[k] !== undefined
+      ? `<label class="lbl">${l} <small style="color:var(--navy);font-weight:600">현장 PC에서 관리</small><input class="field" data-si="${k}" type="${type || 'text'}" value="${esc(i[k] || '')}" readonly style="background:var(--navy-soft);color:var(--ink-2)"></label>`
+      : `<label class="lbl">${l}<input class="field" data-si="${k}" type="${type || 'text'}" value="${esc(i[k] || '')}" placeholder="${esc(ph || '')}" autocomplete="off"></label>`;
     const v = await App.sheet({
       title: '현장 정보',
       wide: true,
-      body: `<p class="meta" style="margin:0;color:var(--muted)">감리 서식의 수신·발신·서명란과 홈 화면의 공사 기간·공정률에 씁니다. 현장 PC에 적어 둔 정보가 있으면 그것을 먼저 채웁니다.</p>
+      body: `<p class="meta" style="margin:0;color:var(--muted)">감리 서식의 수신·발신·서명란과 홈 화면의 공사 기간·공정률에 씁니다. 현장 PC(연결·설정 › 현장 정보)에 적은 칸은 PC에서 고치면 모든 기기·휴대폰에 바로 바뀝니다.</p>
         <div class="fm-grid2">${F('name', '공사명', '예: ○○ 공동주택 신축공사')}${F('addr', '현장 위치', '예: 서울 금천구 디지털로9길 32')}
         ${F('contractor', '시공사', '예: ○○건설(주)')}${F('agent', '현장대리인', '이름')}
         ${F('cmOrg', '감리단 (건설사업관리단)', '무영씨엠건축사사무소')}${F('chief', '총괄감리원 (책임감리원)', '이름')}
